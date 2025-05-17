@@ -1,0 +1,120 @@
+services:
+  - type: web
+    name: dify-api
+    env: docker
+    repo: https://github.com/langgenius/dify.git
+    branch: main
+    dockerCommand: docker-compose -f docker-compose.yaml up api
+    envVars:
+      - key: APP_API_URL
+        value: https://dify-api.onrender.com
+      - key: APP_WEB_URL
+        value: https://dify-web.onrender.com
+      - key: DB_HOST
+        fromService:
+          type: pserv
+          name: dify-db
+          property: host
+      - key: DB_PORT
+        fromService:
+          type: pserv
+          name: dify-db
+          property: port
+      - key: DB_DATABASE
+        value: dify
+      - key: DB_USERNAME
+        fromService:
+          type: pserv
+          name: dify-db
+          property: user
+      - key: DB_PASSWORD
+        fromService:
+          type: pserv
+          name: dify-db
+          property: password
+      - key: REDIS_HOST
+        fromService:
+          type: pserv
+          name: dify-redis
+          property: host
+      - key: REDIS_PORT
+        fromService:
+          type: pserv
+          name: dify-redis
+          property: port
+      - key: OPENROUTER_API_KEY
+        value: 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
+      - key: WEAVIATE_HOST
+        value: dify-weaviate
+      - key: WEAVIATE_PORT
+        value: 8080
+      - key: DIFY_API_KEY
+        value: your-dify-api-key
+      - key: TZ
+        value: Asia/Bangkok
+    plan: standard
+    numInstances: 1
+    healthCheckPath: /health
+
+  - type: web
+    name: dify-web
+    env: docker
+    repo: https://github.com/langgenius/dify.git
+    branch: main
+    dockerCommand: docker-compose -f docker-compose.yaml up web
+    envVars:
+      - key: APP_API_URL
+        value: https://dify-api.onrender.com
+      - key: APP_WEB_URL
+        value: https://dify-web.onrender.com
+      - key: TZ
+        value: Asia/Bangkok
+    plan: standard
+    numInstances: 1
+    healthCheckPath: /
+
+  - type: pserv
+    name: dify-db
+    env: docker
+    image: postgres:15
+    envVars:
+      - key: POSTGRES_DB
+        value: dify
+      - key: POSTGRES_USER
+        value: dify
+      - key: POSTGRES_PASSWORD
+        generateValue: true
+      - key: TZ
+        value: Asia/Bangkok
+    disk:
+      name: dify-db-data
+      mountPath: /var/lib/postgresql/data
+      sizeGB: 10
+
+  - type: pserv
+    name: dify-redis
+    env: docker
+    image: redis:7
+    envVars:
+      - key: TZ
+        value: Asia/Bangkok
+    disk:
+      name: dify-redis-data
+      mountPath: /data
+      sizeGB: 5
+
+  - type: pserv
+    name: dify-weaviate
+    env: docker
+    image: semitechnologies/weaviate:1.22.4
+    envVars:
+      - key: AUTHENTICATION_ANONYMOUS_ACCESS_ENABLED
+        value: "true"
+      - key: PERSISTENCE_DATA_PATH
+        value: /var/lib/weaviate
+      - key: TZ
+        value: Asia/Bangkok
+    disk:
+      name: dify-weaviate-data
+      mountPath: /var/lib/weaviate
+      sizeGB: 10
