@@ -22,6 +22,9 @@ POSTGRES_URL = os.getenv("POSTGRES_URL")
 DIFY_API_URL = os.getenv("DIFY_API_URL", "https://your-dify-app.onrender.com/v1/chat-messages")
 ESCALATION_CHAT_ID = "-1002587300255"
 
+# Set timezone to UTC+07:00 (Asia/Bangkok)
+TIMEZONE = pytz.timezone("Asia/Bangkok")
+
 # List of CS bot names
 BOT_NAMES = ["Selena", "Emma", "Liam", "Olivia", "Noah", "Ava", "Sophia", "James"]
 
@@ -49,7 +52,7 @@ def get_bot_name(chat_id):
 def add_conversation_record(chat_id, message_text, response_text):
     conn = get_db_connection()
     cursor = conn.cursor()
-    key = f"{chat_id}_{datetime.now().isoformat()}"
+    key = f"{chat_id}_{datetime.now(TIMEZONE).isoformat()}"
     data = f"User: {message_text} Support: {response_text}"
     cursor.execute(
         "INSERT INTO conversations (key, data, chat_id) VALUES (%s, %s, %s) ON CONFLICT (key) DO UPDATE SET data = %s",
@@ -72,9 +75,10 @@ def search_conversation_records(chat_id, limit=100):
     conn.close()
     return [row[0] for row in results]
 
-# Format date for escalation message
+# Format date for escalation message in UTC+07:00
 def format_date(timestamp):
     dt = datetime.fromtimestamp(timestamp, tz=pytz.UTC)
+    dt = dt.astimezone(TIMEZONE)
     return dt.strftime("%d.%m.%Y %H:%M")
 
 # Call Dify API
