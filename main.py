@@ -119,3 +119,7 @@ https://forms.gle/Qz3qfYRkLXrJf9VU6
     requests.post(f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage", json=reply_payload)
 
     return "ok"
+    
+if __name__ == "__main__":
+    port = int(os.environ.get("PORT", 5000))  # Render provides PORT as env variable
+    app.run(host="0.0.0.0", port=port)
