@@ -1,16 +1,37 @@
-# main.py
-from telegram import Update
-from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
-
 import os
+import random
+import requests
+from flask import Flask, request
 
-BOT_TOKEN = os.environ["BOT_TOKEN"] # Read from environment variable
+app = Flask(__name__)
 
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("Welcome! Use /listcommands to see available commands.")
+# Read from environment variables
+BOT_TOKEN = os.environ["BOT_TOKEN"]
+DIFY_API_KEY = os.environ["DIFY_API_KEY"]
+DIFY_APP_ID = os.environ["DIFY_APP_ID"]
 
-async def listcommands(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    message = """
+# 🧠 Random bot names
+BOT_NAMES = ["Sophy", "Rith", "Malis", "Kosal", "Dara", "Selena", "Maii", "Borey", "Raksa", "James", "Michelle", "Phanith", "Malisa", "Marima", "Nicky", "Dellis"]
+
+@app.route("/")
+def home():
+    return "KG Telegram Bot is running!"
+
+@app.route(f"/{BOT_TOKEN}", methods=["POST"])
+def telegram_webhook():
+    data = request.get_json()
+    
+    # Parse user message
+    message = data.get("message", {})
+    chat_id = message.get("chat", {}).get("id")
+    user_text = message.get("text", "").strip().lower()
+
+    if not chat_id or not user_text:
+        return "Invalid data", 400
+
+    # 🎯 Respond with command list
+    if user_text in ["/listcommands", "/help"]:
+        command_list_text = """
 ---- <Common Commands> ----
 
 LIST COMMANDS:
@@ -33,8 +54,8 @@ HOW TO USE BOT:
 /help
 
 CHECK-MEMBER
-
 BOT-NEWONE
+
 ---- <Super Commands> ----
 
 Active Bot:
@@ -54,11 +75,47 @@ Total Withdraw Report:
 Total Register Report:
 /list_total_register
 
-Have Any Request? Send it via: https://forms.gle/Qz3qfYRkLXrJf9VU6
+Have Any Request? Send it via:
+https://forms.gle/Qz3qfYRkLXrJf9VU6
 """
-    await update.message.reply_text(message)
+        reply_payload = {
+            "chat_id": chat_id,
+            "text": command_list_text
+        }
+        requests.post(f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage", json=reply_payload)
+        return "ok"
 
-app = ApplicationBuilder().token(BOT_TOKEN).build()
-app.add_handler(CommandHandler("start", start))
-app.add_handler(CommandHandler("listcommands", listcommands))
-app.run_polling()
+    # 🧠 Pick a random bot name
+    bot_name = random.choice(BOT_NAMES)
+
+    # 🔁 Send user query to Dify
+    dify_payload = {
+        "inputs": {
+            "bot_name": bot_name
+        },
+        "query": user_text,
+        "response_mode": "blocking",
+        "conversation_id": str(chat_id),
+        "user": str(chat_id),
+        "app_id": DIFY_APP_ID
+    }
+
+    headers = {
+        "Authorization": f"Bearer {DIFY_API_KEY}",
+        "Content-Type": "application/json"
+    }
+
+    try:
+        res = requests.post("https://api.dify.ai/v1/chat-messages", headers=headers, json=dify_payload)
+        answer = res.json().get("answer", "Sorry, something went wrong.")
+    except Exception as e:
+        answer = f"⚠️ Error contacting AI: {str(e)}"
+
+    # 💬 Send AI reply to Telegram
+    reply_payload = {
+        "chat_id": chat_id,
+        "text": answer
+    }
+    requests.post(f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage", json=reply_payload)
+
+    return "ok"
